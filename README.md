@@ -8,7 +8,7 @@
 
 ## 2. 安装 (Install & Run)
 
-*  使用`Git`客户端将仓库克隆到本地目录，`git clone https://github.com/ymstars/lock-editor.git`
+*  使用`Git`客户端将仓库克隆到本地目录，`git clone https://github.com/ymstars/locker-editor.git`
 * `cd locker-editor`
 *  确保 `/data/files`和`/data/db` 目录是可写的
 * `npm install`
