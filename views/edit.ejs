@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css'/>
+    <script src="/vue/dist/vue.js"></script>
+    <script src="/axios/dist/axios.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+<div id="root">
+    <nav class="navbar navbar-expand-sm navbar-dark bg-primary">
+        <a class="navbar-brand" href="#">File Locker</a>
+        <button class="navbar-toggler d-lg-none" type="button" data-toggle="collapse" data-target="#collapsibleNavId"
+                aria-controls="collapsibleNavId"
+                aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="collapsibleNavId">
+            <ul class="navbar-nav mr-auto mt-2 mt-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">New File</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/view">List File</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container mt-3">
+        <h3>Edit File: {{record.name}}</h3>
+        <hr>
+
+        Count Down: <span class="badge-danger p-1">{{seconds}}</span> Seconds!
+
+        <hr>
+        <form>
+            <div class="form-group">
+                <label for="contentInput">Content:</label>
+                <textarea class="form-control" id="contentInput" rows="5" v-model="record.content"></textarea>
+            </div>
+            <button type="button" v-on:click="submitFile" class="btn btn-primary">Done</button>
+        </form>
+    </div>
+</div>
+<script>
+    axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+    const id = <%= id %>;
+    const sign = '<%= sign %>';
+    const socket = io();
+    socket.on('connect', function () {
+        new Vue({
+            el: '#root',
+            data() {
+                return {
+                    record: {
+                        name: '',
+                        content: '',
+                        leaseAt: undefined,
+                        locked: undefined
+                    },
+                    seconds: 60
+                }
+            },
+            methods: {
+                loadRecord() {
+                    axios.get(`/files/${id}?sign=${sign}`).then(res => {
+                        this.record = res.data;
+                        if (this.record.leaseAt !== undefined) {
+                            setInterval(() => {
+                                const seconds = Math.round((this.record.leaseAt - Date.now()) / 1000);
+                                this.seconds = seconds;
+                                if (seconds <= 0) {
+                                    window.location.href = '/view';
+                                }
+                            }, 1000)
+                        }
+                    })
+                },
+                submitFile() {
+                    const {content} = this.record;
+                    axios.put(`/files/${id}`, {id, content, sign})
+                        .then(res => {
+                            alert(`${this.record.name} :File Updated`)
+                            window.location.href = '/view';
+                        })
+                        .catch(e => {
+                            alert(e.response.data.message)
+                        })
+                }
+            },
+            mounted() {
+                this.loadRecord();
+            }
+        })
+    });
+
+</script>
+</body>
+</html>

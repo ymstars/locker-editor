@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css'/>
+    <script src="/vue/dist/vue.js"></script>
+    <script src="/axios/dist/axios.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+<div id="root">
+    <nav class="navbar navbar-expand-sm navbar-dark bg-primary">
+        <a class="navbar-brand" href="#">File Locker System</a>
+        <button class="navbar-toggler d-lg-none" type="button" data-toggle="collapse" data-target="#collapsibleNavId"
+                aria-controls="collapsibleNavId"
+                aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="collapsibleNavId">
+            <ul class="navbar-nav mr-auto mt-2 mt-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">Create New File</a>
+                </li>
+                <li class="nav-item active">
+                    <a class="nav-link" href="/view">File List</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container mt-3">
+        <table class="table table-striped">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>CreateTime</th>
+                <th>Last Edit</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="file in files">
+                <td>{{file.id}}</td>
+                <td><a :href="'/files/'+file.id+'/download'" role="button">{{file.name}}</a></td>
+                <td>{{new Date(file.createTime).toLocaleString()}}</td>
+                <td>
+                    <span v-if="!file.updateTime">-</span>
+                    <span v-else>{{new Date(file.updateTime).toLocaleString()}}</span>
+                </td>
+                <td>
+                    <span v-if="file.locked" class="badge badge-danger p-2">Editing</span>
+                    <span v-else class="badge badge-success p-2">Idle</span>
+                <td>
+                    <button v-if="file.locked" class="btn btn-sm btn-danger" disabled="">Waiting Lease</button>
+                    <button v-else class="btn btn-sm btn-primary" v-on:click="lockFile(file.id)">Edit</button>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+    const socket = io();
+    axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+    socket.on('connect', function () {
+        new Vue({
+            el: '#root',
+            data() {
+                return {
+                    files: []
+                };
+            },
+            methods: {
+                loadFiles() {
+                    axios.get('/files').then(res => {
+                        this.files = res.data;
+                    })
+                },
+                lockFile(id) {
+                    axios.post(`/files/${id}/lock`)
+                        .then(res => {
+                            const data = res.data;
+                            window.location.href = `/edit/${id}?sign=${data.sign}`
+                        })
+                        .catch(e => {
+                            alert(e.response.data.message)
+                        })
+                },
+                appendFile(file) {
+                    this.files = [file, ...this.files]
+                },
+                changeItem(file) {
+                    this.files = this.files.map(function (item) {
+                        return item.id === file.id ? file : item;
+                    })
+                }
+            },
+            mounted() {
+                socket.on('append_file', (data) => {
+                    this.appendFile(data)
+                })
+                socket.on('lock_file', (data) => {
+                    this.changeItem(data)
+                })
+                socket.on('lease_file', (data) => {
+                    this.changeItem(data)
+                })
+                this.loadFiles();
+            }
+        })
+    });
+</script>
+</body>
+</html>
